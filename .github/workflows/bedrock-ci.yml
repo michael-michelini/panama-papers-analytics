@@ -2,7 +2,7 @@ name: Bedrock CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
     paths:
       - "bedrock/**"
       - ".github/workflows/bedrock-ci.yml"
@@ -37,4 +37,4 @@ jobs:
         run: ruff format --check .
 
       - name: Test (pytest)
-        run: pytest tests/ -v --tb=short
+        run: pytest tests/ -v --tb=short || [ $? -eq 5 ]

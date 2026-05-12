@@ -1,0 +1,85 @@
+name: Deploy Neptune Loader Stack
+
+on:
+  workflow_dispatch:
+
+# Manual-only workflow — intentionally has no push/pull_request triggers.
+# Run this when you need to (re)load data into Neptune. Delete the stack when done.
+# See pipeline/MIGRATION_README.md for the full two-stack deploy/delete sequence.
+
+jobs:
+
+  # ─── Neptune Loader ──────────────────────────────────────────────────────────
+  neptune-loader:
+    name: Neptune Loader
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ap-southeast-2
+      STACK_NAME: ${{ vars.AWS_GLOBAL_STACK_PREFIX }}neptune-loader
+      STACK_PREFIX: ${{ vars.AWS_GLOBAL_STACK_PREFIX && format('{0}neptune-loader', vars.AWS_GLOBAL_STACK_PREFIX) || 'neptune-loader' }}
+      CORE_STACK_PREFIX: ${{ vars.AWS_GLOBAL_STACK_PREFIX && format('{0}neptune-core', vars.AWS_GLOBAL_STACK_PREFIX) || 'neptune-core' }}
+      TAG_REPO: ${{ github.repository }}
+      TAG_COMMIT: ${{ github.sha }}
+      TAG_ACTOR: ${{ github.actor }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-2
+
+      - name: Lint template
+        run: |
+          pip install cfn-lint --quiet
+          cfn-lint pipeline/infra/neptune-loader.yaml
+
+      - name: Validate template
+        run: aws cloudformation validate-template --template-body file://pipeline/infra/neptune-loader.yaml
+
+      - name: Handle stack in bad state
+        run: |
+          STATUS=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query 'Stacks[0].StackStatus' \
+            --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+          echo "Stack status: $STATUS"
+          if [ "$STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STATUS" = "ROLLBACK_FAILED" ]; then
+            echo "Stack is in $STATUS — deleting before redeploy..."
+            aws cloudformation delete-stack --stack-name "$STACK_NAME"
+            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
+            echo "Stack deleted."
+          elif [ "$STATUS" = "DELETE_IN_PROGRESS" ]; then
+            echo "Stack deletion already in progress, waiting..."
+            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
+          fi
+
+      - name: Deploy stack
+        run: |
+          aws cloudformation deploy \
+            --template-file pipeline/infra/neptune-loader.yaml \
+            --stack-name "$STACK_NAME" \
+            --parameter-overrides \
+              StackPrefix="$STACK_PREFIX" \
+              CoreStackPrefix="$CORE_STACK_PREFIX" \
+            --tags \
+              source=github \
+              "repo=$TAG_REPO" \
+              "commit=$TAG_COMMIT" \
+              "triggered-by=$TAG_ACTOR" \
+              demo=neptune-loader \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Print stack outputs
+        run: |
+          echo "=== Stack outputs ==="
+          aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query 'Stacks[0].Outputs' \
+            --output table
+          echo ""
+          echo "Upload vertices to the staging bucket, wait for LOAD_COMPLETED, then upload edges."
+          echo "Delete this stack when the load cycle is complete."

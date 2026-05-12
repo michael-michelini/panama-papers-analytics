@@ -83,6 +83,13 @@ Implement tasks from an OpenSpec change.
    - If all done: suggest archive
    - If paused: explain why and wait for guidance
 
+8. **Post GitHub issue comment (if linked)**
+
+   Check for `openspec/changes/<name>/issue.txt`. If it exists:
+   - Read the issue number from that file
+   - If all tasks are now complete: post a completion comment summarising what was implemented and suggesting the user run `/opsx:archive`
+   - If partially complete (session ended): post a progress comment listing tasks completed this session and overall progress
+
 **Output During Implementation**
 
 ```

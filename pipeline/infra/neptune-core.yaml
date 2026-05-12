@@ -1,0 +1,138 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Neptune core stack — Neptune Serverless cluster, subnet group, parameter group, and S3 IAM role. Deploys into an existing VPC. NeptuneCluster and NeptuneInstance carry UpdateReplacePolicy Retain to protect data if an update triggers replacement.
+
+Metadata:
+  cfn-lint:
+    config:
+      regions:
+        - ap-southeast-2
+
+Parameters:
+  StackPrefix:
+    Type: String
+    Default: neptune-core
+    Description: Prefix for all resource names and CloudFormation export names
+
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: ID of the existing VPC to deploy Neptune into
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Comma-separated list of at least two subnet IDs in the target VPC (must span two AZs)
+
+Resources:
+
+  # ─── Security Group ─────────────────────────────────────────────────────────
+
+  NeptuneSecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Allow inbound Neptune bolt/HTTP on 8182. IAM auth is the access control layer.
+      VpcId: !Ref VpcId
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 8182
+          ToPort: 8182
+          CidrIp: 0.0.0.0/0
+      Tags:
+        - Key: Name
+          Value: !Sub "${StackPrefix}-neptune-sg"
+
+  # ─── Neptune ────────────────────────────────────────────────────────────────
+
+  NeptuneSubnetGroup:
+    Type: AWS::Neptune::DBSubnetGroup
+    Properties:
+      DBSubnetGroupDescription: Subnet group for Neptune Serverless cluster
+      SubnetIds: !Ref SubnetIds
+
+  NeptuneParameterGroup:
+    Type: AWS::Neptune::DBClusterParameterGroup
+    Properties:
+      Description: Parameter group for Neptune 1.4
+      Family: neptune1.4
+      Parameters:
+        neptune_enable_audit_log: "0"
+
+  # NeptuneS3Role lives in this stack (not the loader stack) because it must be
+  # attached to the cluster via AssociatedRoles at cluster creation time. Moving it
+  # to the loader stack would require updating AssociatedRoles at loader deploy/delete
+  # time, creating a circular dependency. The resource is "*" because the staging
+  # bucket lives in the ephemeral loader stack and is not known at core stack deploy time.
+  NeptuneS3Role:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${StackPrefix}-neptune-s3-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: rds.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - !Ref NeptuneS3Policy
+
+  NeptuneS3Policy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${StackPrefix}-neptune-s3-policy"
+      Description: Grants Neptune bulk loader read access to the staging bucket
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - s3:GetObject
+              - s3:ListBucket
+            Resource: "*"
+
+  NeptuneCluster:
+    Type: AWS::Neptune::DBCluster
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Properties:
+      DBClusterIdentifier: !Sub "${StackPrefix}-cluster"
+      EngineVersion: "1.4"
+      DBSubnetGroupName: !Ref NeptuneSubnetGroup
+      DBClusterParameterGroupName: !Ref NeptuneParameterGroup
+      VpcSecurityGroupIds:
+        - !Ref NeptuneSecurityGroup
+      IamAuthEnabled: true
+      ServerlessScalingConfiguration:
+        MinCapacity: 1
+        MaxCapacity: 4
+      StorageEncrypted: true
+      AssociatedRoles:
+        - RoleArn: !GetAtt NeptuneS3Role.Arn
+
+  NeptuneInstance:
+    Type: AWS::Neptune::DBInstance
+    DeletionPolicy: Delete
+    UpdateReplacePolicy: Retain
+    Properties:
+      DBClusterIdentifier: !Ref NeptuneCluster
+      DBInstanceClass: db.serverless
+
+  # ─── Outputs ────────────────────────────────────────────────────────────────
+
+Outputs:
+  NeptuneEndpoint:
+    Description: Neptune cluster endpoint
+    Value: !GetAtt NeptuneCluster.Endpoint
+    Export:
+      Name: !Sub "${StackPrefix}-NeptuneEndpoint"
+
+  NeptuneLoadRoleArn:
+    Description: IAM role ARN for Neptune bulk load
+    Value: !GetAtt NeptuneS3Role.Arn
+    Export:
+      Name: !Sub "${StackPrefix}-NeptuneLoadRoleArn"
+
+  NeptuneClusterResourceId:
+    Description: Neptune cluster resource ID (used by loader stack to scope IAM permissions)
+    Value: !GetAtt NeptuneCluster.ClusterResourceId
+    Export:
+      Name: !Sub "${StackPrefix}-NeptuneClusterResourceId"
