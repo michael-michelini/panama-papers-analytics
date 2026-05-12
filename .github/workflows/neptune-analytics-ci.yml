@@ -2,7 +2,7 @@ name: Neptune Analytics CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
     paths:
       - "neptune-analytics/**"
       - ".github/workflows/neptune-analytics-ci.yml"

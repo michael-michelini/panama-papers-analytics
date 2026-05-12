@@ -2,7 +2,7 @@ name: Pipeline CI
 
 on:
   pull_request:
-    branches: [main]
+    branches: [master]
     paths:
       - "pipeline/**"
       - ".github/workflows/pipeline-ci.yml"
@@ -44,3 +44,18 @@ jobs:
           pip install aws-cdk-lib constructs
           cd infra && cdk synth --quiet
         continue-on-error: true  # Remove once infra/ is scaffolded
+
+  cfn-lint:
+    name: CloudFormation Lint
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install cfn-lint
+        run: pip install cfn-lint --quiet
+
+      - name: Lint neptune-core
+        run: cfn-lint pipeline/infra/neptune-core.yaml
+
+      - name: Lint neptune-loader
+        run: cfn-lint pipeline/infra/neptune-loader.yaml
