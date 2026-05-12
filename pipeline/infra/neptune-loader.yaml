@@ -72,22 +72,17 @@ Resources:
             "Fn::Sub": "${CoreStackPrefix}-NeptuneLoadRoleArn"
       Code:
         ZipFile: |
-          import json
           import os
-          import urllib.request
           import boto3
-          import botocore.auth
-          import botocore.awsrequest
 
           def handler(event, context):
               neptune_endpoint = os.environ["NEPTUNE_ENDPOINT"]
               load_role_arn = os.environ["NEPTUNE_LOAD_ROLE_ARN"]
 
-              loader_url = f"https://{neptune_endpoint}:8182/loader"
-
-              session = boto3.session.Session()
-              credentials = session.get_credentials().get_frozen_credentials()
-              region = session.region_name or "ap-southeast-2"
+              client = boto3.client(
+                  "neptunedata",
+                  endpoint_url=f"https://{neptune_endpoint}:8182",
+              )
 
               for record in event.get("Records", []):
                   s3 = record["s3"]
@@ -95,40 +90,16 @@ Resources:
                   key = s3["object"]["key"]
                   s3_uri = f"s3://{bucket}/{key}"
 
-                  payload = json.dumps({
-                      "source": s3_uri,
-                      "format": "csv",
-                      "iamRoleArn": load_role_arn,
-                      "region": region,
-                      "failOnError": "FALSE",
-                      "parallelism": "MEDIUM",
-                  }).encode("utf-8")
-
-                  aws_request = botocore.awsrequest.AWSRequest(
-                      method="POST",
-                      url=loader_url,
-                      data=payload,
-                      headers={"Content-Type": "application/json"},
+                  response = client.start_loader_job(
+                      source=s3_uri,
+                      format="csv",
+                      s3BucketRegion="ap-southeast-2",
+                      iamRoleArn=load_role_arn,
+                      failOnError=False,
+                      parallelism="MEDIUM",
                   )
-                  signer = botocore.auth.SigV4Auth(credentials, "neptune-db", region)
-                  signer.add_auth(aws_request)
-
-                  req = urllib.request.Request(
-                      loader_url,
-                      data=payload,
-                      headers=dict(aws_request.headers),
-                      method="POST",
-                  )
-
-                  try:
-                      with urllib.request.urlopen(req) as resp:
-                          body = json.loads(resp.read())
-                          load_id = body.get("payload", {}).get("loadId", "unknown")
-                          print(f"Load job submitted: loadId={load_id} source={s3_uri}")
-                  except urllib.error.HTTPError as e:
-                      error_body = e.read().decode("utf-8", errors="replace")
-                      print(f"Neptune loader error {e.code} for {s3_uri}: {error_body}")
-                      raise
+                  load_id = response.get("payload", {}).get("loadId", "unknown")
+                  print(f"Load job submitted: loadId={load_id} source={s3_uri}")
 
   # LambdaInvokePermission uses an explicit bucket name ARN (no Ref) so StagingBucket
   # can safely DependsOn this resource without creating a circular reference.
