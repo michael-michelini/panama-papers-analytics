@@ -1,0 +1,37 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(git clone *)",
+      "Bash(npm search *)",
+      "Bash(gh auth *)",
+      "Bash(gh repo *)",
+      "Bash(gh label *)",
+      "Bash(gh api *)",
+      "Bash(gh issue create --title '[SPIKE] Audit existing pipeline — document current state and gaps' --milestone '🗄️ Data Pipeline & Neptune Core' --label spike,pipeline,p0-critical --body ' *)",
+      "Bash(gh issue create --title '[STORY] Neptune cluster IaC — VPC, security groups, cluster provisioning' --milestone '🗄️ Data Pipeline & Neptune Core' --label story,pipeline,p1-high --body ' *)",
+      "Bash(gh issue create --title '[STORY] S3 bucket IaC and CSV upload tooling' --milestone '🗄️ Data Pipeline & Neptune Core' --label story,pipeline,p1-high --body ' *)",
+      "Bash(gh issue create --title '[STORY] Lambda bulk loader — S3 trigger to Neptune Bulk Loader API' --milestone '🗄️ Data Pipeline & Neptune Core' --label story,pipeline,p1-high --body ' *)",
+      "Bash(gh issue create --title '[STORY] Data validation — schema check before Neptune load' --milestone '🗄️ Data Pipeline & Neptune Core' --label story,pipeline,p2-medium --body ' *)",
+      "Bash(gh issue create --title '[STORY] Idempotent load strategy — safe to re-run without duplicates' --milestone '🗄️ Data Pipeline & Neptune Core' --label story,pipeline,p1-high --body ' *)",
+      "Bash(gh issue create --title '[CHORE] GitHub Actions CI/CD — lint, test, and deploy pipeline' --milestone '🗄️ Data Pipeline & Neptune Core' --label chore,pipeline,p1-high --body ' *)",
+      "Bash(gh issue create --title '[SPIKE] Linkurious datasource configuration for Neptune' --milestone '🔍 Linkurious Integration & Storytelling' --label spike,linkurious,p0-critical --body ' *)",
+      "Bash(gh issue create --title '[STORY] Graph data model documentation — node types, edge types, properties' --milestone '🔍 Linkurious Integration & Storytelling' --label story,linkurious,p1-high --body ' *)",
+      "Bash(gh issue create --title '[STORY] Investigation story: Shell company ownership chains' --milestone '🔍 Linkurious Integration & Storytelling' --label story,linkurious,p1-high --body ' *)",
+      "Bash(gh issue create --title '[STORY] Investigation story: Key intermediary and broker networks' --milestone '🔍 Linkurious Integration & Storytelling' --label story,linkurious,p1-high --body ' *)",
+      "Bash(gh issue create --title '[STORY] Investigation story: Jurisdiction clustering' --milestone '🔍 Linkurious Integration & Storytelling' --label story,linkurious,p2-medium --body ' *)",
+      "Bash(gh issue create --title '[STORY] Alert configuration — flag high-risk entities in Linkurious' --milestone '🔍 Linkurious Integration & Storytelling' --label story,linkurious,p2-medium --body ' *)",
+      "Bash(gh issue create --title '[SPIKE] Neptune Analytics sizing and API patterns for 5M element graph' --milestone '📊 Neptune Analytics Enrichment' --label spike,neptune-analytics,p0-critical --body ' *)",
+      "Bash(gh issue create --title '[STORY] Ephemeral Neptune Analytics provisioning — Lambda-triggered spin-up/tear-down' --milestone '📊 Neptune Analytics Enrichment' --label story,neptune-analytics,p1-high --body ' *)",
+      "Bash(gh issue create --title '[STORY] Centrality analysis job — PageRank and betweenness → Neptune node properties' --milestone '📊 Neptune Analytics Enrichment' --label story,neptune-analytics,p1-high --body ' *)",
+      "Bash(gh issue create --title '[STORY] Community detection job — cluster assignments → Neptune node properties' --milestone '📊 Neptune Analytics Enrichment' --label story,neptune-analytics,p1-high --body ' *)",
+      "Bash(gh issue create --title '[STORY] Linkurious visualisations using enriched graph properties' --milestone '📊 Neptune Analytics Enrichment' --label story,linkurious,neptune-analytics,p2-medium --body ' *)",
+      "Bash(gh issue create --title '[SPIKE] Bedrock model evaluation — Text2Cypher vs GraphRAG feasibility' --milestone '🤖 Bedrock / GraphRAG NL Interface' --label spike,bedrock,p0-critical --body ' *)",
+      "Bash(gh issue create --title '[STORY] Text2openCypher pipeline — NL → openCypher → Neptune → NL response' --milestone '🤖 Bedrock / GraphRAG NL Interface' --label story,bedrock,p1-high --body ' *)",
+      "Bash(gh issue create --title '[STORY] GraphRAG pipeline — subgraph chunking, Titan embeddings, retrieval' --milestone '🤖 Bedrock / GraphRAG NL Interface' --label story,bedrock,p2-medium --body ' *)",
+      "Bash(gh issue create --title '[STORY] Hybrid query router — classify and route to Text2Cypher or GraphRAG' --milestone '🤖 Bedrock / GraphRAG NL Interface' --label story,bedrock,p2-medium --body ' *)",
+      "Bash(gh issue create --title '[STORY] Lambda API endpoint for natural language graph queries' --milestone '🤖 Bedrock / GraphRAG NL Interface' --label story,bedrock,p1-high --body ' *)",
+      "Bash(gh issue create --title '[STORY] Linkurious panel integration for NL query interface' --milestone '🤖 Bedrock / GraphRAG NL Interface' --label story,bedrock,linkurious,p1-high --body ' *)",
+      "Bash(git add *)"
+    ]
+  }
+}

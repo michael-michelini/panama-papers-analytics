@@ -1,0 +1,46 @@
+name: Pipeline CI
+
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "pipeline/**"
+      - ".github/workflows/pipeline-ci.yml"
+
+jobs:
+  lint-and-test:
+    name: Lint & Test
+    runs-on: ubuntu-latest
+
+    defaults:
+      run:
+        working-directory: pipeline
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version-file: pipeline/.python-version
+
+      - name: Install dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -e ".[dev]"
+
+      - name: Lint (ruff)
+        run: ruff check .
+
+      - name: Format check (ruff)
+        run: ruff format --check .
+
+      - name: Test (pytest)
+        run: pytest tests/ -v --tb=short
+
+      - name: CDK synth
+        run: |
+          pip install aws-cdk-lib constructs
+          cd infra && cdk synth --quiet
+        continue-on-error: true  # Remove once infra/ is scaffolded
