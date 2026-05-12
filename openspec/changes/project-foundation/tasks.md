@@ -37,4 +37,4 @@
 - [x] 5.2 Create `.github/workflows/neptune-analytics-ci.yml` with lint and test steps for `neptune-analytics/`
 - [x] 5.3 Create `.github/workflows/bedrock-ci.yml` with lint and test steps for `bedrock/`
 - [x] 5.4 Add a `pyproject.toml` (or `.python-version`) to each Python component directory pinning the Python version
-- [ ] 5.5 Verify CI workflows trigger correctly on a test PR and both lint and test steps pass (or fail predictably with no source files yet)
+- [x] 5.5 Verify CI workflows trigger correctly on a test PR and both lint and test steps pass (or fail predictably with no source files yet)
