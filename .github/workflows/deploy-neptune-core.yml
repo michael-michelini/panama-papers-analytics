@@ -1,0 +1,92 @@
+name: Deploy Neptune Core Stack
+
+on:
+  workflow_dispatch:
+  pull_request:
+    branches:
+      - main
+    paths:
+      - "pipeline/infra/neptune-core.yaml"
+
+# Deploys the persistent Neptune cluster stack. Never tears it down.
+# NeptuneCluster and NeptuneInstance carry DeletionPolicy: Retain — data survives stack deletion.
+# See pipeline/MIGRATION_README.md for the full two-stack deploy sequence.
+
+jobs:
+
+  # ─── Neptune Core ────────────────────────────────────────────────────────────
+  neptune-core:
+    name: Neptune Core
+    runs-on: ubuntu-latest
+    env:
+      AWS_REGION: ap-southeast-2
+      STACK_NAME: ${{ vars.AWS_GLOBAL_STACK_PREFIX }}neptune-core
+      STACK_PREFIX: ${{ vars.AWS_GLOBAL_STACK_PREFIX && format('{0}neptune-core', vars.AWS_GLOBAL_STACK_PREFIX) || 'neptune-core' }}
+      TAG_REPO: ${{ github.repository }}
+      TAG_ACTOR: ${{ github.actor }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_ACCESS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: ap-southeast-2
+
+      - name: Lint template
+        run: |
+          pip install cfn-lint --quiet
+          cfn-lint pipeline/infra/neptune-core.yaml
+
+      - name: Validate template
+        run: aws cloudformation validate-template --template-body file://pipeline/infra/neptune-core.yaml
+
+      - name: Handle stack in bad state
+        run: |
+          STATUS=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query 'Stacks[0].StackStatus' \
+            --output text 2>/dev/null || echo "DOES_NOT_EXIST")
+          echo "Stack status: $STATUS"
+          if [ "$STATUS" = "ROLLBACK_COMPLETE" ] || [ "$STATUS" = "ROLLBACK_FAILED" ]; then
+            echo "Stack is in $STATUS — deleting before redeploy..."
+            aws cloudformation delete-stack --stack-name "$STACK_NAME"
+            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
+            echo "Stack deleted."
+          elif [ "$STATUS" = "DELETE_IN_PROGRESS" ]; then
+            echo "Stack deletion already in progress, waiting..."
+            aws cloudformation wait stack-delete-complete --stack-name "$STACK_NAME"
+          fi
+
+      - name: Deploy stack
+        run: |
+          aws cloudformation deploy \
+            --template-file pipeline/infra/neptune-core.yaml \
+            --stack-name "$STACK_NAME" \
+            --parameter-overrides \
+              StackPrefix="$STACK_PREFIX" \
+            --tags \
+              automation=true \
+              "repo=$TAG_REPO" \
+              "triggered-by=$TAG_ACTOR" \
+              demo=neptune-core \
+            --capabilities CAPABILITY_NAMED_IAM \
+            --no-fail-on-empty-changeset
+
+      - name: Confirm cluster is available
+        run: |
+          CLUSTER_ID="${STACK_PREFIX}-cluster"
+          STATUS=$(aws neptune describe-db-clusters \
+            --db-cluster-identifier "$CLUSTER_ID" \
+            --query 'DBClusters[0].Status' \
+            --output text)
+          echo "Neptune cluster status: $STATUS"
+          [ "$STATUS" = "available" ]
+
+      - name: Print stack outputs
+        run: |
+          aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query 'Stacks[0].Outputs' \
+            --output table

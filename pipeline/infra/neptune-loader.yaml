@@ -1,0 +1,169 @@
+AWSTemplateFormatVersion: "2010-09-09"
+
+Description: Neptune loader stack — S3 staging bucket, Lambda bulk-load trigger, and IAM roles. Ephemeral stack; deploy to run a load cycle, delete when done.
+
+Metadata:
+  cfn-lint:
+    config:
+      regions:
+        - ap-southeast-2
+
+Parameters:
+  StackPrefix:
+    Type: String
+    Default: neptune-loader
+    Description: Prefix for all resource names
+
+  CoreStackPrefix:
+    Type: String
+    Default: neptune-core
+    Description: StackPrefix used when deploying neptune-core.yaml; used to resolve Fn::ImportValue export names
+
+Resources:
+
+  # ─── IAM: Lambda execution role ─────────────────────────────────────────────
+
+  LambdaExecutionRole:
+    Type: AWS::IAM::Role
+    Properties:
+      RoleName: !Sub "${StackPrefix}-lambda-role"
+      AssumeRolePolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Principal:
+              Service: lambda.amazonaws.com
+            Action: sts:AssumeRole
+      ManagedPolicyArns:
+        - arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole
+        - !Ref LambdaNeptuneLoaderPolicy
+
+  LambdaNeptuneLoaderPolicy:
+    Type: AWS::IAM::ManagedPolicy
+    Properties:
+      ManagedPolicyName: !Sub "${StackPrefix}-lambda-neptune-loader-policy"
+      Description: Grants Lambda permission to submit Neptune bulk load jobs
+      PolicyDocument:
+        Version: "2012-10-17"
+        Statement:
+          - Effect: Allow
+            Action:
+              - neptune-db:StartLoaderJob
+            Resource: !Sub
+              - "arn:aws:neptune-db:${AWS::Region}:${AWS::AccountId}:${ClusterResourceId}/*"
+              - ClusterResourceId: !ImportValue
+                  "Fn::Sub": "${CoreStackPrefix}-NeptuneClusterResourceId"
+
+  # ─── Lambda ─────────────────────────────────────────────────────────────────
+
+  BulkLoadTriggerLambda:
+    Type: AWS::Lambda::Function
+    Properties:
+      FunctionName: !Sub "${StackPrefix}-bulk-load-trigger"
+      Runtime: python3.13
+      Handler: index.handler
+      Role: !GetAtt LambdaExecutionRole.Arn
+      Timeout: 60
+      Environment:
+        Variables:
+          NEPTUNE_ENDPOINT: !ImportValue
+            "Fn::Sub": "${CoreStackPrefix}-NeptuneEndpoint"
+          NEPTUNE_LOAD_ROLE_ARN: !ImportValue
+            "Fn::Sub": "${CoreStackPrefix}-NeptuneLoadRoleArn"
+      Code:
+        ZipFile: |
+          import json
+          import os
+          import urllib.request
+          import boto3
+          import botocore.auth
+          import botocore.awsrequest
+
+          def handler(event, context):
+              neptune_endpoint = os.environ["NEPTUNE_ENDPOINT"]
+              load_role_arn = os.environ["NEPTUNE_LOAD_ROLE_ARN"]
+
+              loader_url = f"https://{neptune_endpoint}:8182/loader"
+
+              session = boto3.session.Session()
+              credentials = session.get_credentials().get_frozen_credentials()
+              region = session.region_name or "ap-southeast-2"
+
+              for record in event.get("Records", []):
+                  s3 = record["s3"]
+                  bucket = s3["bucket"]["name"]
+                  key = s3["object"]["key"]
+                  s3_uri = f"s3://{bucket}/{key}"
+
+                  payload = json.dumps({
+                      "source": s3_uri,
+                      "format": "csv",
+                      "iamRoleArn": load_role_arn,
+                      "region": region,
+                      "failOnError": "FALSE",
+                      "parallelism": "MEDIUM",
+                  }).encode("utf-8")
+
+                  aws_request = botocore.awsrequest.AWSRequest(
+                      method="POST",
+                      url=loader_url,
+                      data=payload,
+                      headers={"Content-Type": "application/json"},
+                  )
+                  signer = botocore.auth.SigV4Auth(credentials, "neptune-db", region)
+                  signer.add_auth(aws_request)
+
+                  req = urllib.request.Request(
+                      loader_url,
+                      data=payload,
+                      headers=dict(aws_request.headers),
+                      method="POST",
+                  )
+
+                  try:
+                      with urllib.request.urlopen(req) as resp:
+                          body = json.loads(resp.read())
+                          load_id = body.get("payload", {}).get("loadId", "unknown")
+                          print(f"Load job submitted: loadId={load_id} source={s3_uri}")
+                  except urllib.error.HTTPError as e:
+                      error_body = e.read().decode("utf-8", errors="replace")
+                      print(f"Neptune loader error {e.code} for {s3_uri}: {error_body}")
+                      raise
+
+  # LambdaInvokePermission uses an explicit bucket name ARN (no Ref) so StagingBucket
+  # can safely DependsOn this resource without creating a circular reference.
+  LambdaInvokePermission:
+    Type: AWS::Lambda::Permission
+    Properties:
+      FunctionName: !GetAtt BulkLoadTriggerLambda.Arn
+      Action: lambda:InvokeFunction
+      Principal: s3.amazonaws.com
+      SourceArn: !Sub "arn:aws:s3:::${StackPrefix}-staging-${AWS::AccountId}"
+
+  # ─── S3 Staging Bucket ──────────────────────────────────────────────────────
+
+  StagingBucket:
+    Type: AWS::S3::Bucket
+    DependsOn: LambdaInvokePermission
+    Properties:
+      BucketName: !Sub "${StackPrefix}-staging-${AWS::AccountId}"
+      LifecycleConfiguration:
+        Rules:
+          - Id: DeleteAfter7Days
+            Status: Enabled
+            ExpirationInDays: 7
+      NotificationConfiguration:
+        LambdaConfigurations:
+          - Event: "s3:ObjectCreated:*"
+            Function: !GetAtt BulkLoadTriggerLambda.Arn
+
+  # ─── Outputs ────────────────────────────────────────────────────────────────
+
+Outputs:
+  StagingBucketName:
+    Description: S3 staging bucket name — upload vertices first, wait for LOAD_COMPLETED, then upload edges
+    Value: !Ref StagingBucket
+
+  CoreStackPrefix:
+    Description: Core stack prefix used for Fn::ImportValue lookups
+    Value: !Ref CoreStackPrefix

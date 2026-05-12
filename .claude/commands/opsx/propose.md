@@ -80,6 +80,18 @@ When ready to implement, run /opsx:apply
    openspec status --change "<name>"
    ```
 
+6. **Link to a GitHub issue (optional)**
+
+   Ask the user: "Is this change linked to a GitHub issue? If so, provide the issue number."
+
+   If a number is given:
+   - Write it to `openspec/changes/<name>/issue.txt`
+   - Post a comment to that issue summarising the proposed change:
+     - Change name and location
+     - One-line summary from the proposal's "Why" section
+     - List of capabilities being introduced or modified
+     - Link to the proposal file on the current branch
+
 **Output**
 
 After completing all artifacts, summarize:
