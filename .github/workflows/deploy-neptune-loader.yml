@@ -19,6 +19,7 @@ jobs:
       STACK_PREFIX: ${{ vars.AWS_GLOBAL_STACK_PREFIX && format('{0}neptune-loader', vars.AWS_GLOBAL_STACK_PREFIX) || 'neptune-loader' }}
       CORE_STACK_PREFIX: ${{ vars.AWS_GLOBAL_STACK_PREFIX && format('{0}neptune-core', vars.AWS_GLOBAL_STACK_PREFIX) || 'neptune-core' }}
       TAG_REPO: ${{ github.repository }}
+      TAG_COMMIT: ${{ github.sha }}
       TAG_ACTOR: ${{ github.actor }}
     steps:
       - uses: actions/checkout@v4
@@ -64,8 +65,9 @@ jobs:
               StackPrefix="$STACK_PREFIX" \
               CoreStackPrefix="$CORE_STACK_PREFIX" \
             --tags \
-              automation=true \
+              source=github \
               "repo=$TAG_REPO" \
+              "commit=$TAG_COMMIT" \
               "triggered-by=$TAG_ACTOR" \
               demo=neptune-loader \
             --capabilities CAPABILITY_NAMED_IAM \

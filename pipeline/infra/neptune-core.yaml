@@ -1,6 +1,6 @@
 AWSTemplateFormatVersion: "2010-09-09"
 
-Description: Neptune core stack — VPC, Neptune Serverless cluster, subnet group, parameter group, and S3 IAM role. NeptuneCluster and NeptuneInstance carry UpdateReplacePolicy Retain to protect data if an update triggers replacement.
+Description: Neptune core stack — Neptune Serverless cluster, subnet group, parameter group, and S3 IAM role. Deploys into an existing VPC. NeptuneCluster and NeptuneInstance carry UpdateReplacePolicy Retain to protect data if an update triggers replacement.
 
 Metadata:
   cfn-lint:
@@ -14,82 +14,15 @@ Parameters:
     Default: neptune-core
     Description: Prefix for all resource names and CloudFormation export names
 
+  VpcId:
+    Type: AWS::EC2::VPC::Id
+    Description: ID of the existing VPC to deploy Neptune into
+
+  SubnetIds:
+    Type: List<AWS::EC2::Subnet::Id>
+    Description: Comma-separated list of at least two subnet IDs in the target VPC (must span two AZs)
+
 Resources:
-
-  # ─── VPC ────────────────────────────────────────────────────────────────────
-
-  VPC:
-    Type: AWS::EC2::VPC
-    Properties:
-      CidrBlock: 10.0.0.0/16
-      EnableDnsHostnames: true
-      EnableDnsSupport: true
-      Tags:
-        - Key: Name
-          Value: !Sub "${StackPrefix}-vpc"
-
-  InternetGateway:
-    Type: AWS::EC2::InternetGateway
-    Properties:
-      Tags:
-        - Key: Name
-          Value: !Sub "${StackPrefix}-igw"
-
-  VPCGatewayAttachment:
-    Type: AWS::EC2::VPCGatewayAttachment
-    Properties:
-      VpcId: !Ref VPC
-      InternetGatewayId: !Ref InternetGateway
-
-  PublicSubnet:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: 10.0.1.0/24
-      AvailabilityZone: !Select [0, !GetAZs ""]
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub "${StackPrefix}-public-subnet-1"
-
-  PublicSubnet2:
-    Type: AWS::EC2::Subnet
-    Properties:
-      VpcId: !Ref VPC
-      CidrBlock: 10.0.2.0/24
-      AvailabilityZone: !Select [1, !GetAZs ""]
-      MapPublicIpOnLaunch: true
-      Tags:
-        - Key: Name
-          Value: !Sub "${StackPrefix}-public-subnet-2"
-
-  PublicRouteTable:
-    Type: AWS::EC2::RouteTable
-    Properties:
-      VpcId: !Ref VPC
-      Tags:
-        - Key: Name
-          Value: !Sub "${StackPrefix}-public-rt"
-
-  PublicRoute:
-    Type: AWS::EC2::Route
-    DependsOn: VPCGatewayAttachment
-    Properties:
-      RouteTableId: !Ref PublicRouteTable
-      DestinationCidrBlock: 0.0.0.0/0
-      GatewayId: !Ref InternetGateway
-
-  SubnetRouteTableAssociation1:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet
-      RouteTableId: !Ref PublicRouteTable
-
-  SubnetRouteTableAssociation2:
-    Type: AWS::EC2::SubnetRouteTableAssociation
-    Properties:
-      SubnetId: !Ref PublicSubnet2
-      RouteTableId: !Ref PublicRouteTable
 
   # ─── Security Group ─────────────────────────────────────────────────────────
 
@@ -97,7 +30,7 @@ Resources:
     Type: AWS::EC2::SecurityGroup
     Properties:
       GroupDescription: Allow inbound Neptune bolt/HTTP on 8182. IAM auth is the access control layer.
-      VpcId: !Ref VPC
+      VpcId: !Ref VpcId
       SecurityGroupIngress:
         - IpProtocol: tcp
           FromPort: 8182
@@ -113,9 +46,7 @@ Resources:
     Type: AWS::Neptune::DBSubnetGroup
     Properties:
       DBSubnetGroupDescription: Subnet group for Neptune Serverless cluster
-      SubnetIds:
-        - !Ref PublicSubnet
-        - !Ref PublicSubnet2
+      SubnetIds: !Ref SubnetIds
 
   NeptuneParameterGroup:
     Type: AWS::Neptune::DBClusterParameterGroup

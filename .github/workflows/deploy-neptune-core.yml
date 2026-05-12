@@ -18,6 +18,7 @@ jobs:
       STACK_NAME: ${{ vars.AWS_GLOBAL_STACK_PREFIX }}neptune-core
       STACK_PREFIX: ${{ vars.AWS_GLOBAL_STACK_PREFIX && format('{0}neptune-core', vars.AWS_GLOBAL_STACK_PREFIX) || 'neptune-core' }}
       TAG_REPO: ${{ github.repository }}
+      TAG_COMMIT: ${{ github.sha }}
       TAG_ACTOR: ${{ github.actor }}
     steps:
       - uses: actions/checkout@v4
@@ -61,9 +62,12 @@ jobs:
             --stack-name "$STACK_NAME" \
             --parameter-overrides \
               StackPrefix="$STACK_PREFIX" \
+              VpcId="${{ vars.AWS_VPC }}" \
+              SubnetIds="${{ vars.AWS_SUBNETS }}" \
             --tags \
-              automation=true \
+              source=github \
               "repo=$TAG_REPO" \
+              "commit=$TAG_COMMIT" \
               "triggered-by=$TAG_ACTOR" \
               demo=neptune-core \
             --capabilities CAPABILITY_NAMED_IAM \
