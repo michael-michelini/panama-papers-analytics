@@ -115,6 +115,7 @@ Resources:
     Properties:
       DBClusterIdentifier: !Ref NeptuneCluster
       DBInstanceClass: db.serverless
+      PubliclyAccessible: true
 
   # ─── Outputs ────────────────────────────────────────────────────────────────
 
