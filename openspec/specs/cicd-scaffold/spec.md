@@ -37,7 +37,11 @@ A GitHub Actions workflow (`.github/workflows/deploy-neptune-core.yml`) SHALL de
 
 #### Scenario: Core workflow confirms cluster availability
 - **WHEN** the `deploy-neptune-core` workflow completes stack deployment
-- **THEN** it SHALL verify the Neptune cluster status is `available` before the job succeeds
+- **THEN** it SHALL verify the Neptune cluster status is `available` via the AWS API before proceeding to the smoke test
+
+#### Scenario: Core workflow runs smoke test after deployment
+- **WHEN** the `deploy-neptune-core` workflow confirms the cluster is `available`
+- **THEN** it SHALL run `pipeline/scripts/smoke_test.py` against the deployed endpoint and fail the workflow if the query does not succeed
 
 ### Requirement: Separate manual-only workflow for Neptune loader stack
 A GitHub Actions workflow (`.github/workflows/deploy-neptune-loader.yml`) SHALL deploy the `neptune-loader` CloudFormation stack. It SHALL be triggered exclusively via `workflow_dispatch` and SHALL NOT trigger automatically on any push or pull request event.
