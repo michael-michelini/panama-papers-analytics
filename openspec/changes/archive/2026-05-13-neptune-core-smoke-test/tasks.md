@@ -9,5 +9,5 @@
 
 ## 3. Verification
 
-- [ ] 3.1 Trigger `deploy-neptune-core` workflow manually via `workflow_dispatch` and confirm smoke test step passes
-- [ ] 3.2 Confirm workflow output shows the query result (node count)
+- [x] 3.1 Trigger `deploy-neptune-core` workflow manually via `workflow_dispatch` and confirm smoke test step passes
+- [x] 3.2 Confirm workflow output shows the query result (node count)
