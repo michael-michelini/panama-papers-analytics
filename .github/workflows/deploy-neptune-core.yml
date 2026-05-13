@@ -89,3 +89,15 @@ jobs:
             --stack-name "$STACK_NAME" \
             --query 'Stacks[0].Outputs' \
             --output table
+
+      - name: Install boto3
+        run: pip install boto3 --quiet
+
+      - name: Smoke test Neptune endpoint
+        run: |
+          ENDPOINT=$(aws cloudformation describe-stacks \
+            --stack-name "$STACK_NAME" \
+            --query 'Stacks[0].Outputs[?OutputKey==`NeptuneEndpoint`].OutputValue' \
+            --output text)
+          echo "Neptune endpoint: $ENDPOINT"
+          python pipeline/scripts/smoke_test.py "$ENDPOINT"
