@@ -19,13 +19,12 @@ This platform is a sales demonstration for Linkurious, showing how graph technol
 panama-papers-analytics/
 │
 ├── pipeline/              # CSV → S3 → Lambda → Neptune Core
-│   ├── infra/             # CDK for Neptune cluster, S3, Lambda
-│   ├── loaders/           # Lambda bulk loader functions
+│   ├── infra/             # CloudFormation templates (neptune-core.yaml, neptune-loader.yaml)
 │   └── tests/
 │
 ├── neptune-analytics/     # Ephemeral algo runs → write back to Neptune
 │   ├── jobs/              # PageRank, community detection, etc.
-│   ├── infra/             # CDK for Neptune Analytics provisioning
+│   ├── infra/             # CloudFormation templates for Neptune Analytics provisioning
 │   └── tests/
 │
 ├── bedrock/               # Natural language graph querying

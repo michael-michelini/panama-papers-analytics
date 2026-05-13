@@ -17,7 +17,7 @@ Graph analytics platform built on the ICIJ Panama Papers dataset (~2M nodes, ~3M
 
 - **Query language**: openCypher (not Gremlin) — aligns with Linkurious and Neptune Analytics
 - **Bulk load approach**: S3 upload → Lambda trigger → Neptune Bulk Loader API (not direct Lambda writes)
-- **IaC target**: AWS CDK (current prototype uses raw CloudFormation — migration in progress)
+- **IaC target**: AWS CloudFormation — templates live in `infra/` within each component
 - **Load sequencing**: Manual — operator uploads vertices, waits for LOAD_COMPLETED, then uploads edges
 
 ## AWS Configuration
@@ -39,6 +39,6 @@ Issue number is stored in `openspec/changes/<name>/issue.txt` so all three comma
 
 See [`docs/conventions.md`](docs/conventions.md) for full tooling conventions. Summary:
 - Python: ruff (lint + format), pytest
-- IaC: AWS CDK (Python)
+- IaC: AWS CloudFormation
 - CI: GitHub Actions — one workflow per component
 - No hardcoded credentials anywhere; use env vars or AWS Secrets Manager

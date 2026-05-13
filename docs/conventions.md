@@ -73,7 +73,7 @@ chore: initialise mono-repo structure (#1)
 
 ## AWS & Infrastructure
 
-- **IaC tool:** AWS CDK (Python) — CDK code lives in `infra/` within each component
+- **IaC tool:** AWS CloudFormation — templates live in `infra/` within each component
 - **Naming convention:** Resources prefixed with `panama-papers-` (e.g., `panama-papers-neptune-cluster`)
 - **Environment:** Single POC/demo environment; no prod/staging split at this stage
 - **Secrets:** Never commit credentials. Use AWS Secrets Manager or environment variables via `.env` (gitignored).

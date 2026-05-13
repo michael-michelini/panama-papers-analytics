@@ -70,21 +70,21 @@ All future query examples, alert definitions, and investigation stories should u
 
 ## Gap Analysis
 
-| # | Gap | Severity | Affects Issues |
-|---|-----|----------|----------------|
-| 1 | IaC is raw CloudFormation; repo convention is CDK | Medium | #3 |
-| 2 | Export script had hardcoded credentials (now parameterized) | High | #3 |
-| 3 | Lambda only processed `Records[0]` — batched S3 events dropped all but first | High | #3 |
-| 4 | Load ordering (vertices before edges) is a manual operator step, not automated | High | #3 |
-| 5 | No data validation before upload — bad CSVs trigger silent partial loads | High | #4 |
-| 6 | `failOnError: FALSE` — partial load failures are not surfaced | Medium | #4 |
-| 7 | No idempotency — re-uploading CSVs submits duplicate load jobs | Medium | #5 |
-| 8 | CI deploys the stack but does not poll for load job completion | Medium | #6 |
-| 9 | No tests — `pipeline/tests/` is empty | High | #7 |
-| 10 | Neptune placed in public subnets; SG opens 8182 to 0.0.0.0/0 | Low (demo), High (prod) | #3 |
-| 11 | Neptune Analytics not provisioned — CFn creates Neptune DB only | High | Milestone 2 |
-| 12 | No `.python-version` file — `pipeline-ci.yml` references it but it is absent | Low | #7 |
-| 13 | `pipeline/infra/` is expected to be CDK but currently holds a CFn template | Medium | #3 |
+| # | Gap | Severity | Status | Affects Issues |
+|---|-----|----------|--------|----------------|
+| 1 | IaC is raw CloudFormation; repo convention was CDK | Medium | ✅ Closed — CloudFormation is now the confirmed IaC approach | #3 |
+| 2 | Export script had hardcoded credentials (now parameterized) | High | ✅ Fixed | #3 |
+| 3 | Lambda only processed `Records[0]` — batched S3 events dropped all but first | High | ✅ Fixed — iterates all Records | #3 |
+| 4 | Load ordering (vertices before edges) is a manual operator step, not automated | High | ✅ Closed — data is already loaded; manual sequencing is acceptable for this demo | #3 |
+| 5 | No data validation before upload — bad CSVs trigger silent partial loads | High | ✅ Closed — not required for this use case | #4 |
+| 6 | `failOnError: FALSE` — partial load failures are not surfaced | Medium | ✅ Closed — data is loaded and verified | #4 |
+| 7 | No idempotency — re-uploading CSVs submits duplicate load jobs | Medium | ✅ Closed — CSVs are uploaded once; re-upload is not a scenario | #5 |
+| 8 | CI deploys the stack but does not poll for load job completion | Medium | ✅ Closed — operator manually polls; this is a one-time load | #6 |
+| 9 | No tests — `pipeline/tests/` is empty | High | Open — tests will be added alongside a future feature | #7 |
+| 10 | Neptune placed in public subnets; SG opens 8182 to 0.0.0.0/0 | Low (demo), High (prod) | ✅ Closed — acceptable for demo; documented in code | #3 |
+| 11 | Neptune Analytics not provisioned — CFn creates Neptune DB only | High | Open — Milestone 2 scope | Milestone 2 |
+| 12 | No `.python-version` file — `pipeline-ci.yml` references it but it is absent | Low | ✅ Fixed — `pipeline/.python-version` added | #7 |
+| 13 | `pipeline/infra/` is expected to be CDK but currently holds a CFn template | Medium | ✅ Closed — CloudFormation is now the confirmed IaC approach | #3 |
 
 ### Notes on Gap 3 (Lambda batching)
 Fixed in `pipeline/loaders/bulk_load_trigger.py` — now iterates all `Records`. The original inline CFn ZipFile processed only `event["Records"][0]`.
