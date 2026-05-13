@@ -19,15 +19,20 @@ def main() -> None:
         endpoint = os.environ.get("NEPTUNE_ENDPOINT")
 
     if not endpoint:
-        print("Error: Neptune endpoint required as CLI arg or NEPTUNE_ENDPOINT env var", file=sys.stderr)
+        print(
+            "Error: Neptune endpoint required as CLI arg or NEPTUNE_ENDPOINT env var",
+            file=sys.stderr,
+        )
         sys.exit(1)
 
     host = endpoint if endpoint.startswith("https://") else f"https://{endpoint}:8182"
+    region = os.environ.get("AWS_REGION", "ap-southeast-2")
 
-    client = boto3.client("neptunedata", endpoint_url=host, region_name=os.environ.get("AWS_REGION", "ap-southeast-2"))
+    client = boto3.client("neptunedata", endpoint_url=host, region_name=region)
 
     try:
-        response = client.execute_open_cypher_query(openCypherQuery="MATCH (n) RETURN count(n) LIMIT 1")
+        query = "MATCH (n) RETURN count(n) LIMIT 1"
+        response = client.execute_open_cypher_query(openCypherQuery=query)
         results = response.get("results", [])
         print(f"Smoke test passed. Query result: {results}")
         sys.exit(0)
